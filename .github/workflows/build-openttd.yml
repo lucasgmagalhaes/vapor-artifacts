@@ -1,0 +1,116 @@
+name: build-openttd
+# Builds OpenTTD (GPL-2.0) for the web with its upstream Emscripten setup and bundles the free
+# base sets OpenGFX (GPL-2.0), OpenSFX (CC BY-SA 3.0) and OpenMSX (GPL-2.0). Publishes a Release.
+# The sha256/size printed in the summary go into games/openttd/game.json of lucasgmagalhaes/vapor.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  OPENTTD_TAG: "15.3"
+  OPENTTD_COMMIT: 14ec60f248547d4d062a1160f0fc26d742319888
+  OPENGFX_VERSION: "7.1"
+  OPENSFX_VERSION: "1.0.3"
+  OPENMSX_VERSION: "0.4.2"
+  TAG: openttd-${{ github.run_number }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch OpenTTD at the pinned commit
+        run: |
+          git init openttd && cd openttd
+          git remote add origin https://github.com/OpenTTD/OpenTTD
+          git fetch --depth 1 origin "$OPENTTD_COMMIT"
+          git checkout FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$OPENTTD_COMMIT"
+
+      - name: Download base sets
+        run: |
+          mkdir -p sets && cd sets
+          base=https://cdn.openttd.org
+          curl -fsSL -o opengfx.zip "$base/opengfx-releases/$OPENGFX_VERSION/opengfx-$OPENGFX_VERSION-all.zip"
+          curl -fsSL -o opensfx.zip "$base/opensfx-releases/$OPENSFX_VERSION/opensfx-$OPENSFX_VERSION-all.zip"
+          curl -fsSL -o openmsx.zip "$base/openmsx-releases/$OPENMSX_VERSION/openmsx-$OPENMSX_VERSION-all.zip"
+          for z in opengfx opensfx openmsx; do unzip -q -o $z.zip; done
+          ls -la
+          {
+            echo "### Base set hashes (record these to pin them)"
+            for z in opengfx opensfx openmsx; do echo "- $z.zip: $(sha256sum $z.zip | cut -d' ' -f1)"; done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the Emscripten image
+        run: docker build -t emsdk-openttd openttd/os/emscripten
+
+      - name: Build host tools
+        working-directory: openttd
+        run: |
+          mkdir build-host
+          docker run --rm -v "$PWD:$PWD" -u "$(id -u):$(id -g)" --workdir "$PWD/build-host" emsdk-openttd cmake .. -DOPTION_TOOLS_ONLY=ON
+          docker run --rm -v "$PWD:$PWD" -u "$(id -u):$(id -g)" --workdir "$PWD/build-host" emsdk-openttd make -j"$(nproc)" tools
+
+      - name: Configure the web build
+        working-directory: openttd
+        run: |
+          mkdir build
+          docker run --rm -v "$PWD:$PWD" -u "$(id -u):$(id -g)" --workdir "$PWD/build" emsdk-openttd \
+            emcmake cmake .. -DHOST_BINARY_DIR=../build-host -DCMAKE_BUILD_TYPE=Release -DOPTION_USE_ASSERTS=OFF
+
+      - name: Add the free base sets to the preloaded filesystem
+        working-directory: openttd
+        run: |
+          mkdir -p build/baseset
+          cp ../sets/*.tar build/baseset/
+          ls -la build/baseset
+
+      - name: Build the game
+        working-directory: openttd
+        run: |
+          docker run --rm -v "$PWD:$PWD" -u "$(id -u):$(id -g)" --workdir "$PWD/build" emsdk-openttd emmake make -j"$(nproc)"
+          ls -la build | grep -E "openttd\.(html|js|wasm|data)"
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          out=pkg/openttd
+          mkdir -p "$out"
+          cp openttd/build/openttd.html openttd/build/openttd.js openttd/build/openttd.wasm "$out"/
+          cp openttd/build/openttd.data "$out"/ 2>/dev/null || true
+          cp openttd/COPYING.md "$out"/LICENSE-openttd.md
+          cp openttd/CREDITS.md "$out"/CREDITS-openttd.md
+          cp sets/opengfx*/license.txt "$out"/LICENSE-opengfx.txt 2>/dev/null || cp sets/license.txt "$out"/LICENSE-opengfx.txt 2>/dev/null || true
+          cat > "$out"/SOURCE.txt <<EOT
+          Code: https://github.com/OpenTTD/OpenTTD @ $OPENTTD_COMMIT (tag $OPENTTD_TAG, GPL-2.0)
+          Graphics: OpenGFX $OPENGFX_VERSION (GPL-2.0) https://github.com/OpenTTD/OpenGFX
+          Sound: OpenSFX $OPENSFX_VERSION (CC BY-SA 3.0, attribution and share-alike apply) https://github.com/OpenTTD/OpenSFX
+          Music: OpenMSX $OPENMSX_VERSION (GPL-2.0) https://github.com/OpenTTD/OpenMSX
+          Packaged by https://github.com/${{ github.repository }} for the catalog https://github.com/lucasgmagalhaes/vapor
+          EOT
+          (cd pkg && zip -qr -X ../openttd.zip openttd)
+          unzip -l openttd.zip
+
+      - name: Hash and size
+        id: hash
+        run: |
+          echo "sha256=$(sha256sum openttd.zip | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "size=$(stat -c %s openttd.zip)" >> "$GITHUB_OUTPUT"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: OpenTTD ${{ env.OPENTTD_TAG }} (web, free base sets) ${{ env.TAG }}
+          files: openttd.zip
+
+      - name: Summary
+        run: |
+          {
+            echo "### Published artifact"
+            echo "- url: https://github.com/${{ github.repository }}/releases/download/${{ env.TAG }}/openttd.zip"
+            echo "- sha256: ${{ steps.hash.outputs.sha256 }}"
+            echo "- size: ${{ steps.hash.outputs.size }}"
+          } >> "$GITHUB_STEP_SUMMARY"
