@@ -12,7 +12,9 @@ env:
   DOOM_WASM_COMMIT: 65e0d3ae2ffa604155eebd96ed40da6567bd08f4
   FREEDOOM_URL: https://github.com/freedoom/freedoom/releases/download/v0.13.0/freedoom-0.13.0.zip
   FREEDOOM_SHA256: 3f9b264f3e3ce503b4fb7f6bdcb1f419d93c7b546f4df3e874dd878db9688f59
-  EMSDK_VERSION: 3.1.74
+  # doom-wasm aborts with "alignment fault" / "memory access out of bounds" on emsdk >= 3.1.62
+  # (cloudflare/doom-wasm#9); 2.0.20 is the version reported to work.
+  EMSDK_VERSION: 2.0.20
   TAG: doom-freedoom-${{ github.run_number }}
 
 jobs:
