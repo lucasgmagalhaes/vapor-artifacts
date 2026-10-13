@@ -1,0 +1,30 @@
+diff --git a/src/marni/MarniDX_GL.cpp b/src/marni/MarniDX_GL.cpp
+index 2677cd1..ea6a064 100644
+--- a/src/marni/MarniDX_GL.cpp
++++ b/src/marni/MarniDX_GL.cpp
+@@ -79,7 +79,12 @@ MarniDX* Marni_DX() { return g_pDX; }
+ // ---------------------------------------------------------------------------
+ 
+ static const char* kVertexSrc =
++    
++#ifdef __EMSCRIPTEN__
++    "#version 300 es\nprecision highp float;\nprecision highp int;\n"
++#else
+     "#version 330 core\n"
++#endif
+     "layout(location = 0) in vec2 aPos;\n"
+     "layout(location = 1) in vec2 aUV;\n"
+     "layout(location = 2) in vec4 aCol;\n"
+@@ -106,7 +111,12 @@ static const char* kVertexSrc =
+     "}\n";
+ 
+ static const char* kFragmentSrc =
++    
++#ifdef __EMSCRIPTEN__
++    "#version 300 es\nprecision highp float;\nprecision highp int;\n"
++#else
+     "#version 330 core\n"
++#endif
+     "in vec2 vUV;\n"
+     "in vec4 vCol;\n"
+     "uniform sampler2D uTex;\n"

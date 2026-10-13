@@ -1,0 +1,38 @@
+diff --git a/src/marni/MarniGLFuncs.cpp b/src/marni/MarniGLFuncs.cpp
+index c30cfc7..c285125 100644
+--- a/src/marni/MarniGLFuncs.cpp
++++ b/src/marni/MarniGLFuncs.cpp
+@@ -3,6 +3,10 @@
+ 
+ #include <stdio.h>
+ 
++#ifdef __EMSCRIPTEN__
++// GLES3 entry points are link-time symbols on Emscripten: nothing to resolve.
++bool MarniGL_LoadFunctions(void* (*)(const char*)) { return true; }
++#else
+ #define RE1_GL_DEF(type, name) type name = nullptr;
+ RE1_GL_FUNCS(RE1_GL_DEF)
+ #undef RE1_GL_DEF
+@@ -23,3 +27,4 @@ bool MarniGL_LoadFunctions(void* (*getProc)(const char*))
+ 
+     return missing == 0;
+ }
++#endif
+diff --git a/src/marni/MarniGLFuncs.h b/src/marni/MarniGLFuncs.h
+index 07af5d3..6460030 100644
+--- a/src/marni/MarniGLFuncs.h
++++ b/src/marni/MarniGLFuncs.h
+@@ -65,9 +65,13 @@
+     X(PFNGLDRAWARRAYSPROC,             glDrawArrays)                           \
+     X(PFNGLREADPIXELSPROC,             glReadPixels)
+ 
++// On Emscripten the GLES3 entry points are real link-time symbols: no function
++// pointers to declare or load.
++#ifndef __EMSCRIPTEN__
+ #define RE1_GL_DECL(type, name) extern type name;
+ RE1_GL_FUNCS(RE1_GL_DECL)
+ #undef RE1_GL_DECL
++#endif
+ 
+ // Resolve every entry point. `getProc` is SDL_GL_GetProcAddress. Returns true
+ // only if all of them resolved; missing names are logged to stderr.

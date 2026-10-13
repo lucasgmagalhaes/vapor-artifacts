@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><title>RE1 wasm test</title>
+<body style="margin:0;background:#111"><canvas id="canvas" width="640" height="480" tabindex="0"></canvas>
+<script>
+var Module = {
+  canvas: document.getElementById("canvas"),
+  noInitialRun: true,
+  print: (t) => console.log(t),
+  printErr: (t) => console.error(t),
+  onRuntimeInitialized: () => { console.log("[test] runtime ready"); Module.callMain([]); },
+};
+</script>
+<script src="residentevil.js"></script>

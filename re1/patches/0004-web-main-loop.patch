@@ -1,0 +1,40 @@
+diff --git a/src/platform/linux/main.cpp b/src/platform/linux/main.cpp
+index dbf7f4f..fffe466 100644
+--- a/src/platform/linux/main.cpp
++++ b/src/platform/linux/main.cpp
+@@ -6,6 +6,9 @@
+ // Windows (see src/platform/win32/main.cpp:706-757 for the
+ // instruction-for-instruction commentary on that limiter).
+ #include <SDL2/SDL.h>
++#ifdef __EMSCRIPTEN__
++#include <emscripten.h>
++#endif
+ 
+ #include <limits.h>
+ #include <stdio.h>
+@@ -85,9 +88,15 @@ int main(int argc, char** argv)
+         return 1;
+     }
+ 
++#ifdef __EMSCRIPTEN__
++    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
++    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
++    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
++#else
+     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
++#endif
+     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+ 
+@@ -268,6 +277,9 @@ int main(int argc, char** argv)
+         }
+ 
+         if (main_loop() == 0) break;
++#ifdef __EMSCRIPTEN__
++        emscripten_sleep(0);   // let the browser present the frame and run its events
++#endif
+ 
+         if (getenv("RE1_INPUT_DEBUG") != NULL && (presented % 30) == 0) {
+             fprintf(stderr, "[IN] f=%d keyMap[11]=0x%02x kbdCurr=0x%08x kbdPrev=0x%08x "
