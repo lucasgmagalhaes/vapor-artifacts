@@ -1,0 +1,17 @@
+diff --git a/src/game/MainLoop.cpp b/src/game/MainLoop.cpp
+index eeac3f1..9810a54 100644
+--- a/src/game/MainLoop.cpp
++++ b/src/game/MainLoop.cpp
+@@ -305,10 +305,10 @@ _fade_done:
+ 
+     // 0x004297e0: Sprite animation intensity
+     if ((g_main_state_flags & MSF_INTENSITY_RAMP) != 0) {
+-        if ((unsigned __int8)g_spriteAnimIntensity < 0xF0) {
++        if ((uint8_t)g_spriteAnimIntensity < 0xF0) {
+             g_spriteAnimIntensity += 16;
+         }
+-    } else if ((unsigned __int8)g_spriteAnimIntensity > 0x0F) {
++    } else if ((uint8_t)g_spriteAnimIntensity > 0x0F) {
+         g_spriteAnimIntensity -= 16;
+     }
+ 
