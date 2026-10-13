@@ -14,10 +14,10 @@ env:
   OPENGFX_VERSION: "7.1"
   OPENSFX_VERSION: "1.0.3"
   OPENMSX_VERSION: "0.4.2"
-  # sha256 of the downloaded zips; empty means "log only"
-  OPENGFX_SHA256: ""
-  OPENSFX_SHA256: ""
-  OPENMSX_SHA256: ""
+  # sha256 of the downloaded zips (recorded from build #2); an empty value means "log only"
+  OPENGFX_SHA256: "928fcf34efd0719a3560cbab6821d71ce686b6315e8825360fba87a7a94d7846"
+  OPENSFX_SHA256: "e0a218b7dd9438e701503b0f84c25a97c1c11b7c2f025323fb19d6db16ef3759"
+  OPENMSX_SHA256: "5a4277a2e62d87f2952ea5020dc20fb2f6ffafdccf9913fbf35ad45ee30ec762"
   TAG: openttd-${{ github.run_number }}
 
 jobs:
@@ -91,12 +91,7 @@ jobs:
           cp openttd/build/openttd.data "$out"/ 2>/dev/null || true
           cp openttd/COPYING.md "$out"/LICENSE-openttd.md
           cp openttd/CREDITS.md "$out"/CREDITS-openttd.md
-          # license texts and readmes of the base sets must travel with the package
-          for z in opengfx opensfx openmsx; do
-            for f in $(find sets/x/$z -maxdepth 2 -type f \( -iname 'license*' -o -iname 'readme*' \)); do
-              cp "$f" "$out/$(basename "$f" | sed -E "s/^(.*)$/\1/;s/^/$z-/")"
-            done
-          done
+          # each base set tar already contains its own license.txt and readme.txt
           ls "$out"
           cat > "$out"/SOURCE.txt <<EOT
           Code: https://github.com/OpenTTD/OpenTTD @ $OPENTTD_COMMIT (tag $OPENTTD_TAG, GPL-2.0)
