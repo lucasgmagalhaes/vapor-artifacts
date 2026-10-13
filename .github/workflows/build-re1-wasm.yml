@@ -1,0 +1,105 @@
+name: build-re1-wasm
+# Builds the Resident Evil 1 PC decomp (ecruells/resident-evil-pc-decomp, GPL-3.0) for the
+# browser with Emscripten. This repository only holds our overlay files and small patches
+# (re1/); the upstream source is fetched at a pinned commit. NO game data is built or
+# included: the player supplies it (bring-your-own).
+#
+# A Release is only created by a manual run with publish=true. Pushes to the work branch
+# just build and keep a short-lived workflow artifact.
+on:
+  push:
+    branches: [feat/re1-wasm]
+    paths: ["re1/**", ".github/workflows/build-re1-wasm.yml"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish a GitHub Release (only after legal review)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  RE1_REPO: https://github.com/ecruells/resident-evil-pc-decomp
+  RE1_COMMIT: 15004914527567a2b9cecf34997abe8c252bcbf9
+  EMSDK_VERSION: 3.1.74
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: ${{ env.EMSDK_VERSION }}
+
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Fetch upstream at the pinned commit
+        run: |
+          git init upstream && cd upstream
+          git remote add origin "$RE1_REPO"
+          git fetch --depth 1 origin "$RE1_COMMIT"
+          git checkout FETCH_HEAD
+
+      - name: Apply overlay and patches
+        run: |
+          cp -r re1/overlay/. upstream/
+          cd upstream
+          for p in ../re1/patches/*.patch; do
+            echo "applying $p"
+            git apply --whitespace=nowarn "$p"
+          done
+
+      - name: Build
+        run: |
+          cd upstream
+          emcmake cmake -S wasm -B build/web -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/web -j"$(nproc)"
+
+      - name: Package (engine only, no game data)
+        run: |
+          set -euo pipefail
+          out=pkg/re1-wasm
+          mkdir -p "$out"
+          cp upstream/build/web/residentevil.js upstream/build/web/residentevil.wasm "$out"/
+          cp re1/overlay/wasm/index.html "$out"/
+          cp upstream/LICENSE "$out"/LICENSE-re1-decomp
+          cat > "$out"/SOURCE.txt <<EOT
+          Engine: $RE1_REPO @ $RE1_COMMIT (GPL-3.0), with the overlay and patches from
+          https://github.com/${{ github.repository }} (re1/).
+          Contains no game data. The player must supply their own copy of the game.
+          EOT
+          (cd pkg && zip -qr -X ../re1-wasm.zip re1-wasm)
+
+      - name: Hash and size
+        id: hash
+        run: |
+          echo "sha256=$(sha256sum re1-wasm.zip | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "size=$(stat -c %s re1-wasm.zip)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: re1-wasm
+          path: re1-wasm.zip
+          retention-days: 3
+
+      - uses: softprops/action-gh-release@v2
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+        with:
+          tag_name: re1-wasm-${{ github.run_number }}
+          name: RE1 wasm engine ${{ github.run_number }}
+          prerelease: true
+          files: re1-wasm.zip
+
+      - name: Summary
+        run: |
+          {
+            echo "### re1-wasm.zip"
+            echo "- sha256: ${{ steps.hash.outputs.sha256 }}"
+            echo "- size: ${{ steps.hash.outputs.size }}"
+            echo "- published: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}"
+          } >> "$GITHUB_STEP_SUMMARY"
