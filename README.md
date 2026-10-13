@@ -1,8 +1,8 @@
 # vapor-artifacts
 
-Build e hospedagem dos artefatos (wasm + assets livres) dos jogos listados no catálogo do [Vapor](https://github.com/lucasgmagalhaes/vapor).
+Build and hosting of the artifacts (wasm + freely licensed assets) of the games listed in the [Vapor](https://github.com/lucasgmagalhaes/vapor) catalog.
 
-- Cada jogo tem um workflow em `.github/workflows/build-<slug>.yml` que compila a partir de um commit **fixado** do código-fonte, verifica o hash dos assets e publica um Release (`<slug>-<n>`).
-- O catálogo (`games/<slug>/game.json` no repositório `vapor`) aponta para a URL do Release e guarda o `sha256` e o `size`. O app confere ambos antes de instalar.
-- Só entram jogos com `assets_policy` `open` (código e assets com licença livre) ou o código de jogos `bring-your-own`, nunca assets proprietários.
-- **Remoção:** pedidos de takedown são tratados no repositório `vapor` (veja `takedown/TAKEDOWN.md`); aqui basta apagar o Release (e o workflow) do jogo.
+- Each game has a workflow in `.github/workflows/build-<slug>.yml` that builds from a **pinned** source commit, verifies the hash of the assets, and publishes a Release (`<slug>-<n>`).
+- The catalog (`games/<slug>/game.json` in the `vapor` repository) points to the Release URL and stores the `sha256` and `size`. The app checks both before installing.
+- Only games with `assets_policy` `open` (code and assets under a free license) are built here, or the code of `bring-your-own` games, never proprietary assets.
+- **Removal:** takedown requests are handled in the `vapor` repository (see `takedown/TAKEDOWN.md`); here it is enough to delete the game's Release (and workflow).
