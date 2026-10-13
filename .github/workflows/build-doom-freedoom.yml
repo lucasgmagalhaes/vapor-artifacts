@@ -35,6 +35,14 @@ jobs:
           git fetch --depth 1 origin "$DOOM_WASM_COMMIT"
           git checkout FETCH_HEAD
 
+      - name: Disable SAFE_HEAP
+        # SAFE_HEAP aborts with 'alignment fault' on unaligned accesses in the net code
+        # (D_CheckNetGame); unaligned loads/stores are valid in wasm.
+        working-directory: doom-wasm
+        run: |
+          grep -q -- '-s SAFE_HEAP=1' configure.ac
+          sed -i 's/-s SAFE_HEAP=1/-s SAFE_HEAP=0/' configure.ac
+
       - name: Download and verify Freedoom
         run: |
           curl -fsSL -o freedoom.zip "$FREEDOOM_URL"
